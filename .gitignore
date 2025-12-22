@@ -9,3 +9,7 @@ result-*
 .vscode/
 *.swp
 *~
+
+# Temporary/Cache
+arms_cache/
+*.log

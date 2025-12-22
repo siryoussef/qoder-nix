@@ -1,5 +1,4 @@
 # 这就是核心构建文件 (The Core Build Construction)
-# 只要有这个文件，任何安装了 Nix 的 Linux 系统都能跑起来。
 { pkgs ? import <nixpkgs> { config.allowUnfree = true; } }:
 
 pkgs.stdenv.mkDerivation rec {
@@ -7,55 +6,54 @@ pkgs.stdenv.mkDerivation rec {
   version = "1.0.0";
 
   # 1. 软件源 (Source)
-  # 使用 fetchurl 自动从官网下载，而不是依赖本地文件。
-  # 这样别人拿着这个脚本就能跑，不需要手动下载 .deb
+  # WARNING: 官方使用的是 "latest" 链接。如果官方发布了新版本，
+  # 这个文件的 sha256 就会改变，导致构建失败 (Hash Mismatch)。
+  # 解决方法：运行 `nix-prefetch-url ...` 获取新哈希并更新此处。
   src = pkgs.fetchurl {
     url = "https://download.qoder.com/release/latest/qoder_amd64.deb";
-    # SHA256 确保下载文件的安全性
     sha256 = "1gwhvi306h98x9ipf25g6cqph4vf2c643qdlns3sqdc32w9n95f4";
   };
 
   # 2. 构建工具 (Build Tools)
   nativeBuildInputs = with pkgs; [
-    autoPatchelfHook  # 自动外科医生：修正二进制文件里的库路径
-    makeWrapper       # 包装大师：给程序穿上环境变量的外套
-    binutils          # 工具箱：提供 'ar' 命令用来拆包
+    autoPatchelfHook  # 自动链接库
+    makeWrapper       # 包装程序
+    binutils          # 用于 ar 命令
   ];
 
   # 3. 运行依赖 (Runtime Dependencies)
-  # Qoder 运行需要的所有库都在这里。
-  # autoPatchelfHook 会自动把二进制文件里的 /lib/xxx 替换成这些库的真实路径。
+  # 这里的库会被 autoPatchelfHook 链接到二进制文件中。
   buildInputs = with pkgs; [
-    # 音频视频
+    # 基础 UI 库
+    gtk3
+    cairo
+    pango
+    gdk-pixbuf
+    glib
+
+    # 系统服务与底层库
     alsa-lib
     at-spi2-atk
     at-spi2-core
-    cairo
-    pango
-    
-    # 系统底层
     dbus
     expat
-    glib
+    libuuid
     nspr
     nss
     systemd      # 包含 libudev
-    libuuid
-    
-    # 界面 UI
-    gtk3
-    gdk-pixbuf
-    libnotify    # 弹窗通知
-    libsecret    # 密码管理
-    
-    # 图形驱动相关 (Wayland/OpenGL)
+
+    # 桌面集成
+    libnotify    # 通知
+    libsecret    # 密钥环
+
+    # 显卡与 Wayland 支持
     libdrm
     libglvnd
     mesa
     wayland
     libxkbcommon
     
-    # X11 视窗系统全家桶
+    # X11 支持
     xorg.libX11
     xorg.libxcb
     xorg.libXcomposite
@@ -73,21 +71,18 @@ pkgs.stdenv.mkDerivation rec {
   ];
 
   # 4. 解压阶段 (Unpack Phase)
-  # 为什么要自己写？因为 dpkg 解压时会尝试保留 root 权限 (suid)，
-  # 但 Nix 构建过程没有 root 权限，会报错。
-  # 所以我们用 ar + tar 手动解压，并忽略权限。
+  # 手动解压以绕过 dpkg 的 SUID 权限检查
   unpackPhase = ''
     ar x $src
     tar -x --no-same-owner --no-same-permissions -f data.tar.xz
   '';
 
   # 5. 安装阶段 (Install Phase)
-  # 把解压好的文件搬到 Nix 的输出目录 ($out)
   installPhase = ''
     mkdir -p $out
     cp -r usr/* $out/
 
-    # 创建 bin 目录的软链接
+    # 确保 bin 存在并创建符号链接
     mkdir -p $out/bin
     if [ -f $out/share/qoder/qoder ]; then
       ln -s $out/share/qoder/qoder $out/bin/qoder
@@ -97,10 +92,8 @@ pkgs.stdenv.mkDerivation rec {
     fi
   '';
 
-  # 6. 后处理阶段 (Post Fixup)
-  # 解决 "libgbm.so.1" 找不到的问题。
-  # 有些库是程序运行时动态加载的（Plugin），autoPatchelf 检测不到。
-  # 我们强制设置 LD_LIBRARY_PATH 告诉程序去哪里找它们。
+  # 6. 后处理 (Post Fixup)
+  # 强制注入 runtime library path，解决动态加载库 (如 libgbm) 找不到的问题
   postFixup = ''
     wrapProgram $out/share/qoder/qoder \
       --add-flags "--no-sandbox" \
@@ -110,7 +103,9 @@ pkgs.stdenv.mkDerivation rec {
   meta = with pkgs.lib; {
     description = "Qoder IDE - Agentic Coding IDE";
     homepage = "https://qoder.com";
+    # 这是一个闭源商业软件，必须标记为 unfree
+    license = licenses.unfree;
     platforms = [ "x86_64-linux" ];
-    maintainers = [ ]; # 你可以把你的名字写在这
+    maintainers = [ ];
   };
 }
