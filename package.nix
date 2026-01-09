@@ -1,6 +1,5 @@
 # 这就是核心构建文件 (The Core Build Construction)
-{ pkgs ? import <nixpkgs> { config.allowUnfree = true; } }:
-
+{pkgs ? import <nixpkgs> {config.allowUnfree = true;}}:
 pkgs.stdenv.mkDerivation rec {
   pname = "qoder";
   version = "1.0.0";
@@ -11,14 +10,14 @@ pkgs.stdenv.mkDerivation rec {
   # 解决方法：运行 `nix-prefetch-url ...` 获取新哈希并更新此处。
   src = pkgs.fetchurl {
     url = "https://download.qoder.com/release/latest/qoder_amd64.deb";
-    sha256 = "1gwhvi306h98x9ipf25g6cqph4vf2c643qdlns3sqdc32w9n95f4";
+    sha256 = "sha256-5Zkdwk5dnW6k90ncmaXHJEcNYCHJLYESS0P6CNVgqVk=";
   };
 
   # 2. 构建工具 (Build Tools)
   nativeBuildInputs = with pkgs; [
-    autoPatchelfHook  # 自动链接库
-    makeWrapper       # 包装程序
-    binutils          # 用于 ar 命令
+    autoPatchelfHook # 自动链接库
+    makeWrapper # 包装程序
+    binutils # 用于 ar 命令
   ];
 
   # 3. 运行依赖 (Runtime Dependencies)
@@ -40,11 +39,11 @@ pkgs.stdenv.mkDerivation rec {
     libuuid
     nspr
     nss
-    systemd      # 包含 libudev
+    systemd # 包含 libudev
 
     # 桌面集成
-    libnotify    # 通知
-    libsecret    # 密钥环
+    libnotify # 通知
+    libsecret # 密钥环
 
     # 显卡与 Wayland 支持
     libdrm
@@ -52,7 +51,7 @@ pkgs.stdenv.mkDerivation rec {
     mesa
     wayland
     libxkbcommon
-    
+
     # X11 支持
     xorg.libX11
     xorg.libxcb
@@ -97,7 +96,7 @@ pkgs.stdenv.mkDerivation rec {
   postFixup = ''
     wrapProgram $out/share/qoder/qoder \
       --add-flags "--no-sandbox" \
-      --prefix LD_LIBRARY_PATH : "${pkgs.lib.makeLibraryPath [ pkgs.mesa pkgs.libglvnd ]}"
+      --prefix LD_LIBRARY_PATH : "${pkgs.lib.makeLibraryPath [pkgs.mesa pkgs.libglvnd]}"
   '';
 
   meta = with pkgs.lib; {
@@ -105,7 +104,7 @@ pkgs.stdenv.mkDerivation rec {
     homepage = "https://qoder.com";
     # 这是一个闭源商业软件，必须标记为 unfree
     license = licenses.unfree;
-    platforms = [ "x86_64-linux" ];
-    maintainers = [ ];
+    platforms = ["x86_64-linux"];
+    maintainers = [];
   };
 }
