@@ -97,6 +97,10 @@ pkgs.stdenv.mkDerivation rec {
     wrapProgram $out/share/qoder/qoder \
       --add-flags "--no-sandbox" \
       --prefix LD_LIBRARY_PATH : "${pkgs.lib.makeLibraryPath [pkgs.mesa pkgs.libglvnd]}"
+
+    # Fix desktop file path
+    substituteInPlace $out/share/applications/qoder.desktop \
+      --replace "/usr/share/qoder/qoder" "$out/bin/qoder"
   '';
 
   meta = with pkgs.lib; {
